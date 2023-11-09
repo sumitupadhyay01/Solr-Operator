@@ -48,3 +48,9 @@ helm install solr apache-solr/solr --version 0.7.1 --namespace solr -f .\solr-op
 ```
 kubectl apply -f .\solr-operator\solr-init.yaml
 ```
+
+#### Resources:
+- https://solr.apache.org/operator/resources.html
+- https://apache.github.io/solr-operator/docs/running-the-operator.html 
+- https://github.com/apache/solr-operator#solr-operator
+- https://blog.jermdavis.dev/posts/2022/solr-operator-kubernetes
