@@ -1,0 +1,5 @@
+nodeSelector:
+  kubernetes.io/os: linux
+zookeeper-operator:
+  nodeSelector:
+    kubernetes.io/os: linux

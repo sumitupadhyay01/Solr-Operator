@@ -1,0 +1,23 @@
+image:
+  repository: "solr"
+  tag: 8.8.2
+replicas: 3
+addressability:
+  external: 
+    method: Ingress
+    domainName: "local.domain"
+    useExternalAddress: true
+ingressOptions:
+  ingressClassName: "nginx"
+dataStorage:
+  type: "persistent"
+podOptions:
+  nodeSelector:
+    kubernetes.io/os: linux
+    kubernetes.azure.com/mode: user
+zk:  
+  provided:
+    zookeeperPodPolicy:
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.azure.com/mode: user

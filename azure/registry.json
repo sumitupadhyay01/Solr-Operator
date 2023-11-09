@@ -1,0 +1,51 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "acrName": {
+            "type": "string"
+        },
+        "registryLocation": {
+            "type": "string",
+            "defaultValue": "westeurope"
+        },
+        "zoneRedundancy": {
+            "type": "string",
+            "defaultValue": "disabled"
+        },
+        "registrySku": {
+            "type": "string",
+            "defaultValue": "Standard"
+        },
+        "registryApiVersion": {
+            "type": "string",
+            "defaultValue": "2022-02-01-preview"
+        },
+        "tags": {
+            "type": "object",
+            "defaultValue": {}
+        },
+        "publicNetworkAccess": {
+            "type": "string",
+            "defaultValue": "Enabled"
+        }
+    },
+    "resources": [
+        {
+            "name": "[parameters('acrName')]",
+            "type": "Microsoft.ContainerRegistry/registries",
+            "location": "[parameters('registryLocation')]",
+            "apiVersion": "[parameters('registryApiVersion')]",
+            "sku": {
+                "name": "[parameters('registrySku')]"
+            },
+            "dependsOn": [],
+            "tags": "[parameters('tags')]",
+            "properties": {
+                "publicNetworkAccess": "[parameters('publicNetworkAccess')]",
+                "zoneRedundancy": "[parameters('zoneRedundancy')]"
+            }
+        }
+    ],
+    "outputs": {}
+}

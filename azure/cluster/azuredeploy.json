@@ -1,0 +1,223 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "prefix": {
+            "type": "string",
+            "metadata": {
+                "description": "The prefix used for naming resources."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The location of AKS resource."
+            }
+        },
+        "aksName": {
+            "type": "string",
+            "defaultValue": "[concat(parameters('prefix'), '-aks')]",
+            "metadata": {
+                "description": "The name of the Managed Cluster resource."
+            }
+        },
+        "aksSkuName": {
+            "type": "string",
+            "defaultValue": "Basic",
+             "allowedValues": [
+                "Basic",
+                "Base"
+            ]
+        },
+        "aksSkuTier": {
+            "type": "string",
+            "defaultValue": "Free",
+            "allowedValues": [
+                "Free",
+                "Paid", 
+                "Standard"
+            ]
+        },
+        "vmSizeSys": {
+            "type": "string",
+            "defaultValue": "Standard_B4ms", //For production do not use B-tier, but rather D-tier (e.g.: Standard_D2s_v3).
+            "metadata": {
+                "description": "The size of the Virtual Machines for the system agentpool."
+            }
+        },
+        "vmSizeWin": {
+            "type": "string",
+            "defaultValue": "Standard_B4ms", //For production do not use B-tier, but rather D-tier (e.g.: Standard_D2s_v3).
+            "metadata": {
+                "description": "The size of the Virtual Machines for the system agentpool."
+            }
+        },
+        "aksKubernetesVersion": {
+            "type": "string",
+            "defaultValue": "1.25.6",
+            "metadata": {
+                "description": "The version of Kubernetes."
+            }
+        },
+        "aksAdminGroupIds": {
+            "type": "array",
+            "metadata": {
+                "description": "Array of Azure AD groups having Admin Access"
+            },
+            "defaultValue": ""
+        },
+        "aksUpgradeChannel": {
+            "type": "string",
+            "metadata": {
+                "description": "Auto upgrade channel for a managed cluster."
+            },
+            "allowedValues": [
+                "none",
+                "patch",
+                "rapid",
+                "stable",
+                "node-image"
+            ],
+            "defaultValue": "patch"
+        }
+    },
+    "variables": {
+        "vnetName": "[concat(parameters('prefix'), '-vnet')]",
+        "aksDnsPrefix": "[concat(parameters('prefix'), '-dns')]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2021-01-01",
+            "name": "[variables('vnetName')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "location": "westeurope",
+            "properties": {
+                "subnets": [
+                    {
+                        "name": "gate",
+                        "properties": {
+                            "addressPrefix": "10.224.0.0/16"
+                        }
+                    },
+                    {
+                        "name": "aks",
+                        "properties": {
+                            "addressPrefix": "10.225.0.0/16"
+                        }
+                    }
+                ],
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.224.0.0/12"
+                    ]
+                }
+            },
+            "tags": {}
+        },
+        {
+            "apiVersion": "2023-01-01",
+            "type": "Microsoft.ContainerService/managedClusters",
+            "location": "[parameters('location')]",
+            "name": "[parameters('aksName')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            ],
+            "tags": {},
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "kubernetesVersion": "[parameters('aksKubernetesVersion')]",
+                "dnsPrefix": "[variables('aksDnsPrefix')]",
+                "sku": {
+                    "name": "[parameters('aksSkuName')]",
+                    "tier": "[parameters('aksSkuTier')]"
+                },
+                "identity": {
+                    "type": "SystemAssigned"
+                },
+                "servicePrincipalProfile": {
+                    "clientId": "msi"
+                },
+                "agentPoolProfiles": [
+                    {
+                        "name": "sys",
+                        "osType": "linux",
+                        "vmSize": "[parameters('vmSizeSys')]",
+                        "osDiskSizeGB": 128,
+                        "count": 1,
+                        "enableAutoScaling": true,
+                        "minCount": 1,
+                        "maxCount": 5,
+                        "enableNodePublicIP": false,
+                        "storageProfile": "ManagedDisks",
+                        "type": "VirtualMachineScaleSets",
+                        "mode": "System",
+                        "vnetSubnetID": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/aks')]"
+                    },
+                    {
+                        "name": "linux",
+                        "osType": "linux",
+                        "vmSize": "[parameters('vmSizeSys')]",
+                        "osDiskSizeGB": 128,
+                        "count": 1,
+                        "enableAutoScaling": true,
+                        "minCount": 1,
+                        "maxCount": 5,
+                        "maxPods": 100,
+                        "enableNodePublicIP": false,
+                        "storageProfile": "ManagedDisks",
+                        "type": "VirtualMachineScaleSets",
+                        "mode": "User",
+                        "vnetSubnetID": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/aks')]"
+                    },
+                    {
+                        "name": "win",
+                        "osType": "windows",
+                        "vmSize": "[parameters('vmSizeWin')]",
+                        "osDiskSizeGB": 128,
+                        "count": 2,
+                        "enableAutoScaling": true,
+                        "minCount": 1,
+                        "maxCount": 10,
+                        "maxPods": 100,
+                        "enableNodePublicIP": false,
+                        "storageProfile": "ManagedDisks",
+                        "type": "VirtualMachineScaleSets",
+                        "mode": "User",
+                        "vnetSubnetID": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '/subnets/aks')]"
+                    }
+                ],
+                "disableLocalAccounts": false,
+                "enableRBAC": true,
+                "aadProfile": {
+                    "managed": true,
+                    "adminGroupObjectIDs": "[parameters('aksAdminGroupIds')]",
+                    "adminUsers": null,
+                    "enableAzureRBAC": false,
+                    "tenantID": "[subscription().tenantId]"
+                },
+                "networkProfile": {
+                    "loadBalancerSku": "standard",
+                    "networkPlugin": "azure"
+                },
+                "autoUpgradeProfile": {
+                    "upgradeChannel": "[parameters('aksUpgradeChannel')]"
+                },
+                "addonProfiles": {
+                    "httpApplicationRouting": {
+                        "enabled": false
+                    },
+                    "azurepolicy": {
+                        "enabled": false
+                    },
+                    "azureKeyvaultSecretsProvider": {
+                        "enabled": false,
+                        "config": null
+                    }
+                }
+            }
+        }
+    ]
+}
